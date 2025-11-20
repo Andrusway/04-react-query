@@ -11,10 +11,11 @@ export interface MovieResponse {
   total_results: number;
 }
 
-export default async function fetchMovies (query: string): Promise<MovieResponse> {
+export default async function fetchMovies (query: string, page: number): Promise<MovieResponse> {
     const response = await axios.get<MovieResponse>(`${BASE_URL}/search/movie`, {
   params: {
-    query: query
+    query,
+    page,
   },
   headers: {
     Authorization: `Bearer ${TOKEN}`,
@@ -22,3 +23,18 @@ export default async function fetchMovies (query: string): Promise<MovieResponse
     })
     return response.data;
 }
+
+
+
+
+
+
+
+// export default async function fetchMovies (id: number)  {
+//     // const response = await axios.get<MovieResponse>(`${BASE_URL}/search/movie`)
+//     // const response = await axios.get<MovieResponse>(`https://swapi.info/api/people/${id}`)
+
+  
+//     return response.data;
+
+// }

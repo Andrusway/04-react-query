@@ -1,5 +1,5 @@
 import css from "./App.module.css";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import SearchBar from "../SearchBar/SearchBar";
 import toast, { Toaster } from "react-hot-toast";
 import type { Movie } from "../../types/movie";
@@ -8,56 +8,105 @@ import MovieGrid from "../MovieGrid/MovieGrid";
 import Loader from "../Loader/Loader";
 import ErrorMessage from "../ErrorMessage/ErrorMessage";
 import MovieModal from "../MovieModal/MovieModal";
+import {useQuery, keepPreviousData} from '@tanstack/react-query';
+import ReactPaginate from 'react-paginate';
 
 
 
 
 
 export default function App() {
-  const [movies, setMovies] = useState<Movie[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [hasSearched, setHasSearched] = useState<boolean>(false);
+  const [film, setFilms] = useState<string>("");
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
+  const [page, setPage] = useState<number>(1);
+
+  const { data, isError, isLoading, error, isSuccess } = useQuery({
+    queryKey: ["movies", film, page],
+    queryFn: () => fetchMovies(film, page),
+    enabled: film !== "",
+    staleTime: 1000 * 60 * 5,
+    placeholderData: keepPreviousData,
+  });
+
+  useEffect(() => {
+    if (isError) {
+      toast.error("Something went wrong. Please try again.");
+      console.error(error);
+    }
+  }, [isError, error]);
+
+  useEffect(() => {
+    if (isSuccess && data.results.length === 0) {
+      toast.error("No movies found for your request.");
+    }
+  }, [isSuccess, data]);
 
   const handleSubmit = async (query: string) => {
     if (!query) return;
-
-    setMovies([]);
-    setIsLoading(true);
-    setHasSearched(true);
-
-    try {
-      const data = await fetchMovies(query)
-
-      if (data.results.length === 0) {
-        toast.error("No movies found for your request.")
-      } else {
-        setMovies(data.results)
-      }
-    } catch (error) {
-      toast.error("Something went wrong. Please try again.")
-      console.error(error);
-    } finally {
-      setIsLoading(false)
-    }
-  }
+    setFilms(query);
+    setPage(1);
+  };
 
   const handleSelectMovie = (movie: Movie) => {
-    setSelectedMovie(movie)
-  }
+    setSelectedMovie(movie);
+  };
 
   const handleCloseModal = () => {
-  setSelectedMovie(null);
-}
+    setSelectedMovie(null);
+  };
 
   return (
     <div className={css.app}>
       <Toaster position="top-center" />
       <SearchBar onSubmit={handleSubmit} />
-      {movies.length >0 && <MovieGrid movies={movies} onSelect={handleSelectMovie} />}
       {isLoading && <Loader />}
-      {hasSearched && !isLoading && movies.length === 0 && <ErrorMessage />}
-      {selectedMovie && <MovieModal movie={selectedMovie} onClose={handleCloseModal} />}
+      {isSuccess && data.total_pages > 1 && (
+        <ReactPaginate
+          pageCount={data.total_pages}
+          pageRangeDisplayed={5}
+          marginPagesDisplayed={1}
+          onPageChange={({ selected }) => setPage(selected + 1)}
+          forcePage={page - 1}
+          containerClassName={css.pagination}
+          activeClassName={css.active}
+          nextLabel="→"
+          previousLabel="←"
+        />
+      )}
+      {isSuccess && data.results.length > 0 && (
+        <MovieGrid movies={data.results} onSelect={handleSelectMovie} />
+      )}
+      {isSuccess && data.results.length === 0 && <ErrorMessage />}
+      {selectedMovie && (
+        <MovieModal movie={selectedMovie} onClose={handleCloseModal} />
+      )}
     </div>
   );
 }
+
+
+
+
+
+
+//   const [state, setState] = useState<number>(0);
+
+// const {data, isError, isLoading} = useQuery({
+//   queryKey: ["film", state],
+//   queryFn: () => fetchMovies(state),
+//   enabled: state > 0,
+//   staleTime: 1000 * 60 * 5, // 5 minutes
+// })
+
+// console.log({data, isError, isLoading});
+
+// return (
+//   <div>
+//     <button onClick={() => setState(prev => prev + 1)}>+</button>
+//     <span>{state}</span>
+//     <button onClick={() => setState(prev => prev - 1)}>-</button>
+
+//     <pre>{JSON.stringify(data, null, 4)}</pre>
+    
+//   </div>
+// )
